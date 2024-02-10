@@ -21,7 +21,11 @@
 #include <linux/notifier.h>
 #include <linux/msm_drm_notify.h>
 #include <soc/oplus/device_info.h>
+#ifdef TOUCHSCREEN_SYNA_TCM2
+#include "../../../../../sm8550/drivers/input/touchscreen/touchpanel_notify/touchpanel_event_notify.h"
+#else
 #include "../../../../../sm8550/drivers/input/touchscreen/oplus_touchscreen_v2/touchpanel_notify/touchpanel_event_notify.h"
+#endif /* TOUCHSCREEN_SYNA_TCM2 */
 #include "dsi_pwr.h"
 #include "oplus_display_panel.h"
 
