@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2014-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -978,7 +978,6 @@ static int _sde_crtc_set_roi_v1(struct drm_crtc_state *state,
 	crtc = cstate->base.crtc;
 
 	memset(&cstate->user_roi_list, 0, sizeof(cstate->user_roi_list));
-	memset(&cstate->cached_user_roi_list, 0, sizeof(cstate->cached_user_roi_list));
 
 	if (!usr_ptr) {
 		SDE_DEBUG("crtc%d: rois cleared\n", DRMID(crtc));
@@ -3740,7 +3739,7 @@ static struct sde_hw_ctl *_sde_crtc_get_hw_ctl(struct drm_crtc *drm_crtc)
 	struct sde_crtc *sde_crtc = to_sde_crtc(drm_crtc);
 
 	if (!sde_crtc || !sde_crtc->mixers[0].hw_ctl) {
-		SDE_DEBUG("invalid crtc params %d\n", !sde_crtc);
+		DRM_ERROR("invalid crtc params %d\n", !sde_crtc);
 		return NULL;
 	}
 
@@ -3757,6 +3756,7 @@ static struct dma_fence *_sde_plane_get_input_hw_fence(struct drm_plane *plane)
 	struct dma_fence *input_hw_fence = NULL;
 	struct dma_fence_array *array = NULL;
 	struct dma_fence *spec_fence = NULL;
+	bool spec_hw_fence = true;
 	int i;
 
 	if (!plane || !plane->state) {
@@ -3772,8 +3772,6 @@ static struct dma_fence *_sde_plane_get_input_hw_fence(struct drm_plane *plane)
 		fence = (struct dma_fence *)pstate->input_fence;
 
 		if (test_bit(SPEC_FENCE_FLAG_FENCE_ARRAY, &fence->flags)) {
-			bool spec_hw_fence = false;
-
 			array = container_of(fence, struct dma_fence_array, base);
 			if (IS_ERR_OR_NULL(array))
 				goto exit;
@@ -3784,18 +3782,9 @@ static struct dma_fence *_sde_plane_get_input_hw_fence(struct drm_plane *plane)
 
 			for (i = 0; i < array->num_fences; i++) {
 				spec_fence = array->fences[i];
-
-				if (!IS_ERR_OR_NULL(spec_fence) &&
-					test_bit(MSM_HW_FENCE_FLAG_ENABLED_BIT,
-						&spec_fence->flags)) {
-					spec_hw_fence = true;
-				} else {
-					/*
-					 * all child-fences of the spec fence must be hw-fences for
-					 * this fence to be considered hw-fence. Otherwise just
-					 * fail here to set the hw-fences and driver will use
-					 * sw-fences instead.
-					 */
+				if (IS_ERR_OR_NULL(spec_fence) ||
+					!(test_bit(MSM_HW_FENCE_FLAG_ENABLED_BIT,
+						&spec_fence->flags))) {
 					spec_hw_fence = false;
 					break;
 				}
@@ -4280,6 +4269,9 @@ static void _sde_crtc_atomic_begin(struct drm_crtc *crtc,
 		oplus_sde_cp_crtc_apply_properties(crtc, encoder);
 #endif /* OPLUS_FEATURE_DISPLAY */
 
+	if (!sde_crtc->enabled)
+		sde_cp_crtc_mark_features_dirty(crtc);
+
 	/*
 	 * PP_DONE irq is only used by command mode for now.
 	 * It is better to request pending before FLUSH and START trigger
@@ -4554,26 +4546,6 @@ static void _sde_crtc_remove_pipe_flush(struct drm_crtc *crtc)
 		/* clear plane flush bitmask */
 		sde_plane_ctl_flush(plane, ctl, false);
 	}
-}
-
-void sde_crtc_dump_fences(struct drm_crtc *crtc)
-{
-	struct drm_plane *plane = NULL;
-
-	drm_atomic_crtc_for_each_plane(plane, crtc)
-		sde_plane_dump_input_fence(plane);
-}
-
-bool sde_crtc_is_fence_signaled(struct drm_crtc *crtc)
-{
-	struct drm_plane *plane = NULL;
-
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		if (!sde_plane_is_sw_fence_signaled(plane))
-			return false;
-	}
-
-	return true;
 }
 
 /**
@@ -6973,7 +6945,6 @@ void sde_crtc_set_qos_dirty(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	struct drm_plane_state *state;
 	struct sde_plane_state *pstate;
-	u32 plane_mask = 0;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		state = plane->state;
@@ -6983,10 +6954,7 @@ void sde_crtc_set_qos_dirty(struct drm_crtc *crtc)
 		pstate = to_sde_plane_state(state);
 
 		pstate->dirty |= SDE_PLANE_DIRTY_QOS;
-		plane_mask |= drm_plane_mask(plane);
 	}
-	SDE_EVT32(DRMID(crtc), plane_mask);
-
 	sde_crtc_update_line_time(crtc);
 }
 
@@ -7291,7 +7259,7 @@ static ssize_t _sde_debugfs_hw_fence_features_mask_wr(struct file *file,
 {
 	struct sde_crtc *sde_crtc;
 	u32 bit, enable;
-	char buf[25];
+	char buf[10];
 
 	if (!file || !file->private_data)
 		return -EINVAL;

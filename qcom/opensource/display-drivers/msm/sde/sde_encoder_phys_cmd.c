@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -419,6 +419,7 @@ static void sde_encoder_phys_cmd_te_rd_ptr_irq(void *arg, int irq_idx)
 	conn = to_sde_connector(phys_enc->connector);
 	if (conn) {
 		oplus_panel_cmdq_pack_status_reset(conn);
+		oplus_set_pwm_switch_cmd_te_flag(conn);
 	}
 #endif /* OPLUS_FEATURE_DISPLAY */
 
@@ -1094,6 +1095,7 @@ static int _get_tearcheck_threshold(struct sde_encoder_phys *phys_enc)
 
 	sde_enc = to_sde_encoder_virt(phys_enc->parent);
 	info = &sde_enc->mode_info;
+
 	mode = &phys_enc->cached_mode;
 	qsync_mode = sde_connector_get_qsync_mode(conn);
 	threshold_lines = adjusted_threshold_lines = DEFAULT_TEARCHECK_SYNC_THRESH_START;
@@ -1114,7 +1116,7 @@ static int _get_tearcheck_threshold(struct sde_encoder_phys *phys_enc)
 
 		if (phys_enc->parent_ops.get_qsync_fps)
 			phys_enc->parent_ops.get_qsync_fps(phys_enc->parent, &qsync_min_fps,
-					conn->state);
+				conn->state);
 
 
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
@@ -1185,8 +1187,9 @@ static int _get_tearcheck_threshold(struct sde_encoder_phys *phys_enc)
 			extra_time_ns, threshold_lines, adjusted_threshold_lines);
 
 		SDE_EVT32(qsync_mode, qsync_min_fps, default_fps, info->jitter_numer,
-				info->jitter_denom, yres, extra_time_ns, default_line_time_ns,
-				adjusted_threshold_lines);
+			info->jitter_denom, yres, extra_time_ns, default_line_time_ns,
+			adjusted_threshold_lines);
+
 	}
 
 exit:
@@ -1677,6 +1680,7 @@ static bool _sde_encoder_phys_cmd_needs_vsync_change(
 
 	sde_encoder_helper_get_jitter_bounds_ns(info->frame_rate, info->jitter_numer,
 			info->jitter_denom, &l_bound, &u_bound);
+
 	if (!l_bound || !u_bound) {
 		SDE_ERROR_CMDENC(cmd_enc, "invalid vsync jitter bounds\n");
 		return false;
@@ -1745,15 +1749,6 @@ static int _sde_encoder_phys_cmd_wait_for_wr_ptr(
 
 	ret = sde_encoder_helper_wait_for_irq(phys_enc, INTR_IDX_WRPTR,
 			&wait_info);
-
-	/*
-	 * if hwfencing enabled, try again to wait for up to the extended timeout time in
-	 * increments as long as fence has not been signaled.
-	 */
-	if (ret == -ETIMEDOUT && phys_enc->sde_kms->catalog->hw_fence_rev)
-		ret = sde_encoder_helper_hw_fence_extended_wait(phys_enc, ctl, &wait_info,
-			INTR_IDX_WRPTR);
-
 	if (ret == -ETIMEDOUT) {
 		struct sde_hw_ctl *ctl = phys_enc->hw_ctl;
 
@@ -1783,10 +1778,6 @@ static int _sde_encoder_phys_cmd_wait_for_wr_ptr(
 					lock_flags);
 			}
 		}
-
-		/* if we timeout after the extended wait, reset mixers and do sw override */
-		if (ret && phys_enc->sde_kms->catalog->hw_fence_rev)
-			sde_encoder_helper_hw_fence_sw_override(phys_enc, ctl);
 	}
 
 	cmd_enc->wr_ptr_wait_success = (ret == 0) ? true : false;
@@ -1864,6 +1855,9 @@ static int _sde_encoder_phys_cmd_handle_wr_ptr_timeout(
 		SDE_ERROR_CMDENC(cmd_enc,
 			"wr_ptr_irq wait failed, switch_te:%d\n", switch_te);
 		SDE_EVT32(DRMID(phys_enc->parent), switch_te, SDE_EVTLOG_ERROR);
+#ifdef OPLUS_FEATURE_DISPLAY
+		SDE_MM_ERROR("DisplayDriverID@@418$$wr_ptr_irq timeout failed, switch_te=%d\n", switch_te);
+#endif /* OPLUS_FEATURE_DISPLAY */
 
 		if (sde_encoder_phys_cmd_is_master(phys_enc) &&
 			atomic_add_unless(

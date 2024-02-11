@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -256,6 +256,10 @@ enum msm_mdp_conn_property {
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
 	CONNECTOR_PROP_ADFR_MIN_FPS,
 #endif /* OPLUS_FEATURE_DISPLAY_ADFR */
+
+#ifdef OPLUS_FEATURE_DISPLAY_HIGH_PRECISION
+	CONNECTOR_PROP_HIGH_PRECISION_FPS,
+#endif /* OPLUS_FEATURE_DISPLAY_HIGH_PRECISION */
 
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
 	CONNECTOR_PROP_HBM_ENABLE,
@@ -1301,9 +1305,6 @@ int msm_framebuffer_set_cache_hint(struct drm_framebuffer *fb,
 		u32 flags, u32 rd_type, u32 wr_type);
 int msm_framebuffer_get_cache_hint(struct drm_framebuffer *fb,
 		u32 *flags, u32 *rd_type, u32 *wr_type);
-
-int msm_fb_obj_get_attrs(struct drm_gem_object *obj,
-		int *fb_ns, int *fb_sec, int *fb_sec_dir);
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 void msm_fbdev_free(struct drm_device *dev);

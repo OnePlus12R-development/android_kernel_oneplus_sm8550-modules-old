@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -20,10 +20,6 @@
 
 #include "msm_drv.h"
 #include "sde_encoder.h"
-
-#ifdef OPLUS_FEATURE_DISPLAY
-#include "../oplus/oplus_display_interface.h"
-#endif /* OPLUS_FEATURE_DISPLAY */
 
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
 #include "../oplus/oplus_adfr.h"
@@ -205,8 +201,7 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		return;
 	}
 
-	if (bridge->encoder->crtc->state->active_changed)
-		atomic_set(&c_bridge->display->panel->esd_recovery_pending, 0);
+	atomic_set(&c_bridge->display->panel->esd_recovery_pending, 0);
 
 	/* By this point mode should have been validated through mode_fixup */
 	rc = dsi_display_set_mode(c_bridge->display,
@@ -366,11 +361,6 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 		SDE_ATRACE_END("dsi_bridge_post_disable");
 		return;
 	}
-
-#ifdef OPLUS_FEATURE_DISPLAY
-	oplus_wait_for_notify_done(display);
-#endif /* OPLUS_FEATURE_DISPLAY */
-
 	SDE_ATRACE_END("dsi_bridge_post_disable");
 }
 
@@ -475,14 +465,6 @@ static bool _dsi_bridge_mode_validate_and_fixup(struct drm_bridge *bridge,
 			adj_mode->timing.refresh_rate,
 			adj_mode->pixel_clk_khz,
 			adj_mode->panel_mode_caps);
-	}
-
-	if (!dsi_display_mode_match(&cur_dsi_mode, adj_mode,
-			DSI_MODE_MATCH_ACTIVE_TIMINGS) &&
-			(adj_mode->dsi_mode_flags & DSI_MODE_FLAG_DYN_CLK)) {
-		adj_mode->dsi_mode_flags &= ~DSI_MODE_FLAG_DYN_CLK;
-		DSI_ERR("DMS and dyn clk not supported in same commit\n");
-		return false;
 	}
 
 	return rc;

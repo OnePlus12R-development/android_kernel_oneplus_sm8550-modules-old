@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -126,7 +126,7 @@ static const struct drm_prop_enum_list e_panel_mode[] = {
 };
 
 #if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
-extern int iris_backlight_update;
+extern iris_backlight_update;
 #endif
 
 static void sde_dimming_bl_notify(struct sde_connector *conn, struct dsi_backlight_config *config)
@@ -1849,23 +1849,6 @@ static int _sde_connector_set_prop_out_fb(struct drm_connector *connector,
 	return rc;
 }
 
-static struct drm_encoder *
-sde_connector_best_encoder(struct drm_connector *connector)
-{
-	struct sde_connector *c_conn = to_sde_connector(connector);
-
-	if (!connector) {
-		SDE_ERROR("invalid connector\n");
-		return NULL;
-	}
-
-	/*
-	 * This is true for now, revisit this code when multiple encoders are
-	 * supported.
-	 */
-	return c_conn->encoder;
-}
-
 static int _sde_connector_set_prop_retire_fence(struct drm_connector *connector,
 		struct drm_connector_state *state,
 		uint64_t val)
@@ -1901,13 +1884,9 @@ static int _sde_connector_set_prop_retire_fence(struct drm_connector *connector,
 		 */
 		offset++;
 
-		/* get hw_ctl for a wb connector not in cwb mode */
-		if (c_conn->connector_type == DRM_MODE_CONNECTOR_VIRTUAL) {
-			struct drm_encoder *drm_enc = sde_connector_best_encoder(connector);
-
-			if (drm_enc && !sde_encoder_in_clone_mode(drm_enc))
-				hw_ctl = sde_encoder_get_hw_ctl(c_conn);
-		}
+		/* get hw_ctl for a wb connector */
+		if (c_conn->connector_type == DRM_MODE_CONNECTOR_VIRTUAL)
+			hw_ctl = sde_encoder_get_hw_ctl(c_conn);
 
 		rc = sde_fence_create(c_conn->retire_fence,
 					&fence_user_fd, offset, hw_ctl);
@@ -2050,6 +2029,12 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 		oplus_adfr_property_update(c_conn, c_state, idx, val);
 		break;
 #endif /* OPLUS_FEATURE_DISPLAY_ADFR */
+
+#ifdef OPLUS_FEATURE_DISPLAY_HIGH_PRECISION
+	case CONNECTOR_PROP_HIGH_PRECISION_FPS:
+		msm_property_set_dirty(&c_conn->property_info, &c_state->property_state, idx);
+		break;
+#endif /* OPLUS_FEATURE_DISPLAY_HIGH_PRECISION */
 	case CONNECTOR_PROP_LP:
 		/* suspend case: clear stale MISR */
 		if (val == SDE_MODE_DPMS_OFF)
@@ -2985,6 +2970,23 @@ sde_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static struct drm_encoder *
+sde_connector_best_encoder(struct drm_connector *connector)
+{
+	struct sde_connector *c_conn = to_sde_connector(connector);
+
+	if (!connector) {
+		SDE_ERROR("invalid connector\n");
+		return NULL;
+	}
+
+	/*
+	 * This is true for now, revisit this code when multiple encoders are
+	 * supported.
+	 */
+	return c_conn->encoder;
+}
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 static struct drm_encoder *
 sde_connector_atomic_best_encoder(struct drm_connector *connector,
@@ -3513,6 +3515,10 @@ static int _sde_connector_install_properties(struct drm_device *dev,
 		}
 #endif /* OPLUS_FEATURE_DISPLAY_ADFR */
 
+#ifdef OPLUS_FEATURE_DISPLAY_HIGH_PRECISION
+		msm_property_install_range(&c_conn->property_info, "high_precision_fps", 0x0, 0, ~0, 0, CONNECTOR_PROP_HIGH_PRECISION_FPS);
+#endif /* OPLUS_FEATURE_DISPLAY_HIGH_PRECISION */
+
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
 		if (oplus_ofp_is_supported()) {
 			msm_property_install_range(&c_conn->property_info, "hbm_enable",
@@ -3831,8 +3837,7 @@ int sde_connector_register_custom_event(struct sde_kms *kms,
 		break;
 	case DRM_EVENT_SDE_HW_RECOVERY:
 		ret = _sde_conn_enable_hw_recovery(conn_drm);
-		if (SDE_DBG_DEFAULT_DUMP_MODE != SDE_DBG_DUMP_IN_LOG_LIMITED)
-			sde_dbg_update_dump_mode(val);
+		sde_dbg_update_dump_mode(val);
 		break;
 	default:
 		break;
