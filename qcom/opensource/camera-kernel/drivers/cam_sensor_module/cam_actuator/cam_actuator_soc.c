@@ -23,7 +23,7 @@ int32_t cam_actuator_parse_dt(struct cam_actuator_ctrl_t *a_ctrl,
 	struct cam_sensor_power_ctrl_t  *power_info = &soc_private->power_info;
 	struct device_node              *of_node = NULL;
 	struct device_node              *of_parent = NULL;
-	
+
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 	uint32_t                        reactive_setting_data[6];
 	uint32_t                        reactive_setting_size;
@@ -98,7 +98,7 @@ int32_t cam_actuator_parse_dt(struct cam_actuator_ctrl_t *a_ctrl,
 	{
 		CAM_INFO(CAM_ACTUATOR, "read is_af_parklens success, value:%d", a_ctrl->is_af_parklens);
 	}
-	
+
 	if (!of_property_read_bool(of_node, "reactive-ctrl-support")) {
 		a_ctrl->reactive_ctrl_support = false;
 		CAM_DBG(CAM_ACTUATOR, "No reactive control parameter defined");
