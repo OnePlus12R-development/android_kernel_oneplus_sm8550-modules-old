@@ -24,7 +24,7 @@
 #ifdef TOUCHSCREEN_SYNA_TCM2
 #include "../../../../../sm8550/drivers/input/touchscreen/touchpanel_notify/touchpanel_event_notify.h"
 #else
-#include "../../../../../sm8550/drivers/input/touchscreen/oplus_touchscreen_v2/touchpanel_notify/touchpanel_event_notify.h"
+#include "../../../../../sm8550/drivers/input/touchscreen/touchpanel_notify/touchpanel_event_notify.h"
 #endif /* TOUCHSCREEN_SYNA_TCM2 */
 #include "dsi_pwr.h"
 #include "oplus_display_panel.h"
@@ -91,6 +91,7 @@ uint64_t serial_number_fir = 0x0;
 uint64_t serial_number_sec = 0x0;
 
 struct touchpanel_event fp_state = {0};
+struct touchpanel_event fingerprint_trigger = {0};
 
 EXPORT_SYMBOL(oplus_dimlayer_bl_alpha);
 EXPORT_SYMBOL(oplus_dimlayer_bl_enable_real);
@@ -3058,6 +3059,7 @@ static ssize_t oplus_display_get_fp_state(struct kobject *obj,
 	struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d,%d,%d\n", fp_state.x, fp_state.y, fp_state.touch_state);
+
 }
 
 static struct kobject *oplus_display_kobj;
@@ -3117,7 +3119,11 @@ static OPLUS_ATTR(panel_pwr, S_IRUGO | S_IWUSR, oplus_display_get_panel_pwr,
 		oplus_display_set_panel_pwr);
 static OPLUS_ATTR(dsi_log_switch, S_IRUGO | S_IWUSR, oplus_display_get_dsi_log_switch,
 		oplus_display_set_dsi_log_switch);
+#ifdef TOUCHSCREEN_SYNA_TCM2
 static OPLUS_ATTR(fp_state, S_IRUGO, oplus_display_get_fp_state, NULL);
+#else
+static OPLUS_ATTR(fp_state, S_IRUGO, oplus_display_get_fp_state, NULL);
+#endif
 static OPLUS_ATTR(trace_enable, S_IRUGO | S_IWUSR, oplus_display_get_trace_enable_attr, oplus_display_set_trace_enable_attr);
 static OPLUS_ATTR(backlight_smooth, S_IRUGO|S_IWUSR, oplus_backlight_smooth_get_debug,
 		oplus_backlight_smooth_set_debug);
@@ -3240,7 +3246,6 @@ EXPORT_SYMBOL(oplus_display_get_resolution);
 
 static int oplus_input_event_notify(struct notifier_block *self, unsigned long action, void *data) {
 	struct touchpanel_event *event = (struct touchpanel_event*)data;
-
 	if (event && action == EVENT_ACTION_FOR_FINGPRINT) {
 		fp_state.x = event->x;
 		fp_state.y = event->y;

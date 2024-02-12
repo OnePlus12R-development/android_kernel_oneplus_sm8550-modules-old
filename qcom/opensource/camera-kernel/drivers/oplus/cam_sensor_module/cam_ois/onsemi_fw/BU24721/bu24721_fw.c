@@ -838,7 +838,7 @@ void Boot_err_sla_change (void)
 }
 
 
-int Rohm_bu24721_fw_download(void)
+int Rohm_bu24721_fw_download()
 {
     OIS_ULONG	Prog_ID;
     int ret = 0;
@@ -887,7 +887,7 @@ int Rohm_bu24721_fw_download(void)
     return ret;
 }
 
-int bu24721_do_push_center(void)
+int bu24721_do_push_center()
 {
     int rc = 0;
 

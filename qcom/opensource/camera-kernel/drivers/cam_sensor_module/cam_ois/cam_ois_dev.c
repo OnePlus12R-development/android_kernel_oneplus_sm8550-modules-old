@@ -43,7 +43,7 @@ static int cam_ois_subdev_close_internal(struct v4l2_subdev *sd,
 	mutex_lock(&(o_ctrl->ois_mutex));
 	cam_ois_shutdown(o_ctrl);
 	mutex_unlock(&(o_ctrl->ois_mutex));
-	
+
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 	if(o_ctrl->camera_ois_shake_detect_enable &&
 		o_ctrl->cam_ois_last_state == CAM_OIS_LOCK){
@@ -53,6 +53,7 @@ static int cam_ois_subdev_close_internal(struct v4l2_subdev *sd,
 
 	o_ctrl->ois_print_hall_data_thread = NULL;
 #endif
+
 
 	return 0;
 }
