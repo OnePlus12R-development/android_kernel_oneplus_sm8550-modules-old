@@ -15,11 +15,7 @@
 #include "sde_encoder_phys.h"
 #include "sde_trace.h"
 #include <linux/msm_drm_notify.h>
-#ifdef TOUCHSCREEN_SYNA_TCM2
-#include "../../../../../sm8550/drivers/input/touchscreen/touchpanel_notify/touchpanel_event_notify.h"
-#else
-#include "../../../../../sm8550/drivers/input/touchscreen/oplus_touchscreen_v2/touchpanel_notify/touchpanel_event_notify.h"
-#endif /* TOUCHSCREEN_SYNA_TCM2 */
+#include <soc/oplus/touchpanel_event_notify.h>
 
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
 #include "oplus_adfr.h"
